@@ -1,0 +1,18 @@
+{
+  "host": "bp1-login03.acrc.bris.ac.uk",
+  "port": 22,
+  "known_hosts": "/config/known_hosts",
+  "https": false,
+  "allowed_hosts": ["127.0.0.1", "localhost"],
+  "defaults": {
+    "root": "/user/work/{username}",
+    "accounts": [],
+    "partitions": ["short", "compute"],
+    "restrict_choices": false,
+    "environment": "",
+    "max_cpus": 32,
+    "max_memory_gb": 128,
+    "max_hours": 48
+  },
+  "profiles": {}
+}
