@@ -1,0 +1,17 @@
+services:
+  portal:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8000"
+    environment:
+      PORTAL_MODE: ${PORTAL_MODE:-preview}
+    volumes:
+      - portal-data:/data
+      - ./deployment:/config:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  portal-data:

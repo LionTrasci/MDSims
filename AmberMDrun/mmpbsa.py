@@ -111,6 +111,19 @@ quit""")
     return f'com.parm7', f'com.rst7'
 
 
+def analysis_ranks():
+    """Use the explicitly allocated CPUs, not half of an entire shared node."""
+    for key in ("MDSIMS_MPI_RANKS", "SLURM_CPUS_PER_TASK"):
+        value = os.environ.get(key)
+        if value is not None:
+            if not value.isdigit() or int(value) < 1:
+                raise ValueError(f"{key} must be a positive integer")
+            return int(value)
+    if hasattr(os, "sched_getaffinity"):
+        return max(1, len(os.sched_getaffinity(0)) // 2)
+    return max(1, (os.cpu_count() or 1) // 2)
+
+
 def run_mmpbsa(parm7: str, rst7: str, netcdf: str, system: pyamber.SystemInfo, mol_list: List):
     parm7 = Path(parm7).absolute()
     rst7 = Path(rst7).absolute()
@@ -140,7 +153,6 @@ exit '
     if not Path("MMPBSA").is_dir():
         Path("MMPBSA").mkdir()
     os.chdir("MMPBSA")
-    from multiprocessing import cpu_count
     make_ndx = f"echo q | gmx make_ndx -f {str(parm7.with_suffix('.pdb'))} -o index.ndx"
     runCMD(make_ndx)
     mmpbsa_in = f'&general\n \
@@ -164,7 +176,7 @@ print_res="within 4"\n \
         mol_path = Path.cwd().joinpath(f'lig{mol}')
         mol_path.mkdir(exist_ok=True)
         os.chdir(str(mol_path))
-        mmpbsa = f"mpirun -np {cpu_count() // 2} gmx_MMPBSA MPI -O -i ../mmpbsa.in -cs {str(parm7.with_suffix('.pdb'))} -ci ../index.ndx -cg 1 {mol_number} -ct {str(parm7.with_suffix('.xtc'))}  -cp \
+        mmpbsa = f"mpirun -np {analysis_ranks()} gmx_MMPBSA MPI -O -i ../mmpbsa.in -cs {str(parm7.with_suffix('.pdb'))} -ci ../index.ndx -cg 1 {mol_number} -ct {str(parm7.with_suffix('.xtc'))}  -cp \
         {str(parm7.with_suffix('.top'))} -nogui"
         runCMD(mmpbsa)
         os.chdir('..')
@@ -203,16 +215,17 @@ def mmpbsa():
     protein = args.protein
     mol_list = args.mol2
     temp = args.temp
-    if not args.guess_charge and not args.user_charge:
-        if len(mol_list) != len(args.charge) and len(mol_list) != len(args.multiplicity):
-            raise ValueError(
-                "If the charge is not guessed, it is necessary to specify the charge and spin multiplicity for each ligand.")
-
+    if args.guess_charge and args.user_charge:
+        raise ValueError("Choose either guessed charges or charges from the ligand files")
     if mol_list is None:
         protein, mol = split_pdb(protein)
         mol_list = [mol]
-    parm7, rst7 = run_tleap(protein, mol_list, args.charge, args.user_charge,
-                            args.multiplicity, args.guess_charge)
+    if not args.guess_charge and not args.user_charge:
+        if len(mol_list) != len(args.charge) or len(mol_list) != len(args.multiplicity):
+            raise ValueError(
+                "Specify one charge and spin multiplicity for each ligand.")
+    parm7, rst7 = run_tleap(protein, mol_list, user_charge=args.user_charge, charge=args.charge,
+                            multiplicity=args.multiplicity, guess_charge=args.guess_charge)
     s = pyamber.SystemInfo(parm7, rst7, runMin=args.MIN, runMd=args.MD)
     heavymask = "\"" + s.getHeavyMask() + "\""
     backbonemask = "\"" + s.getBackBoneMask() + "\""

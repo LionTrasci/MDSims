@@ -1,8 +1,15 @@
 
  [English](README.md) | [中文](README.zh.md) 
 
-# AmberMDrun 
+# AmberMDrun
 Easy to use, easy to expand, high-performance Amber simulation package
+
+## BP1 submission portal
+
+See [portal/README.md](portal/README.md) for the React/FastAPI submission portal,
+Linux/Docker hosting, individual BP1 login, script reviews and job records.
+The default mode is a local preview; live submissions require BP1 configuration.
+
 ## Update 
 v0.0.5 Added support for multiple ligands.
 ## Install
